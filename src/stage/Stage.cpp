@@ -140,6 +140,7 @@ void invalidate() { redraw = true; }
 State state() { return st; }
 uint8_t cursor() { return curPile; }
 uint8_t holding() { return heldSrc == NO_PILE ? 0 : heldN; }
+void point(uint8_t pile, uint8_t d) { if (pile < PILES) { curPile = pile; depth = d ? d : 1; } }
 
 static void landed(const Klondike &k, const Fly &f) {
     if (f.flags & F_PUFF) {

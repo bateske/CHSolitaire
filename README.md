@@ -12,10 +12,11 @@ card at a time and leaves its trail across the screen. On the title, cards
 drift down the felt and turn over, as the tiles do in CHMahjong.
 
 What Windows did with a mouse the glove does here: it comes up from under
-a card with a fingertip on its edge, lifts it (or a whole run) and carries it to where it should go. Legal
-places shimmer while you carry. Cards fly out on the deal, turn over as they
-are uncovered, spark as they land on a foundation, and a finished suit gets
-its name called. Once everything is face up and the stock is done, the game
+a card with a fingertip on its edge, lifts it (or a whole run) and carries
+it, rainbow-edged, to where it should go. Legal places shimmer while you
+carry. Cards fly out on the deal, turn over as they are uncovered, land on a
+column in a puff of dust, spark as they land on a foundation, and a finished
+suit gets its name called. Once everything is face up and the stock is done, the game
 plays itself out.
 
 ![gameplay](docs/gameplay.gif)
@@ -26,8 +27,10 @@ plays itself out.
 
 (Captured from the PC simulator in `tools/chsim`, which runs the real game
 and graphics code and renders what the device shows.
-`tools/scripts/showcase.txt` makes them. The game has not been run on the
-board yet: its pace, frame rate and sound there are unchecked.)
+`tools/scripts/gameplay.txt` and `showcase.txt` make them: the reel is a
+real deal played by the rules, then a cut to the end of a game. The game has
+not been run on the board yet: its pace, frame rate and sound there are
+unchecked.)
 
 The card faces, suit glyphs and 3x5 lettering come from Press Play On Tape's
 Arduboy Blackjack by **filmote** (Simon Holmes) and **vampirics** (Stephane
@@ -133,7 +136,8 @@ C++ compiler (zig, clang++ or g++ on the PATH, `pip install ziglang`, or
   runs the game from a script and writes screenshots and GIFs. `expect`
   checks the table's numbers, `waitstate` runs until the table is in a
   state; `say G <seed>` deals a known game, `say W <n>` leaves n cards to
-  play, `say O <i> <v>` sets an option.
+  play, `say O <i> <v>` sets an option, `say C <pile> <cards>` puts the
+  glove on a pile.
 * `python tools/device.py upload [--debug]` - build and upload (`--debug`
   adds the serial protocol for screenshots, injected input and lockstep;
   `device.py run SCRIPT OUTDIR` runs a script on the board).

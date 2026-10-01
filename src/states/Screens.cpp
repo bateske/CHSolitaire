@@ -508,6 +508,7 @@ static void statsRender(uint32_t frame) {
 //   G <seed>           deal that game (with the options as they are)
 //   W <cards>          all but that many cards already on the foundations
 //   O <i> <value>      set option byte i
+//   C <pile> <cards>   put the glove on a pile (0 stock, 1 waste, 2-5 foundations, 6-12 columns)
 //   $ <amount>         set the Vegas bank
 //   J <T|P|D|O|S>      jump to a screen
 //   H                  the table in numbers
@@ -532,6 +533,11 @@ static bool debugHook(char cmd, const char *args) {
             if (i >= sizeof opt) return false;
             optByte(i) = (uint8_t)dbg::parseNum(args, 10);
             applyOptions();
+            return true;
+        }
+        case 'C': {
+            uint8_t pile = (uint8_t)dbg::parseNum(args, 10);
+            stage::point(pile, (uint8_t)dbg::parseNum(args, 10));
             return true;
         }
         case '$': stats.bank = (int32_t)dbg::parseNum(args, 10); return true;

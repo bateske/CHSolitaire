@@ -1,4 +1,4 @@
-# The README's GIFs:
+# The README's smaller GIFs (the reel is gameplay.txt):
 #   python tools/chsim/chdrive.py --sim . tools/scripts/showcase.txt docs
 # (then delete docs/sheet.png and docs/result.png).
 wait 20
@@ -33,38 +33,6 @@ wait 60
 rec stop deck
 tap B
 wait 30
-
-# A game: the deal, an ace sent up, a card carried over, the stock.
-say O 5 2
-say G 7
-wait 12
-rec start 3
-waitstate 1 30
-tap A 4
-wait 2
-tap A 4
-wait 50
-tap RIGHT 6
-wait 8
-tap RIGHT 6
-wait 8
-tap RIGHT 6
-wait 20
-tap A 6
-wait 14
-tap LEFT 6
-wait 24
-tap A 6
-wait 50
-tap B 6
-wait 40
-tap B 6
-wait 40
-tap B 6
-wait 50
-tap SELECT 6
-wait 50
-rec stop gameplay
 
 # The end of a game: it plays itself out, and the pack bounces away.
 say O 5 0

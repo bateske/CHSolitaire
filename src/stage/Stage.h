@@ -27,6 +27,7 @@ void invalidate();                          // something drew over the table
 State state();
 uint8_t cursor();                           // the pile the glove is on (debug)
 uint8_t holding();                          // cards in hand (debug)
+void point(uint8_t pile, uint8_t depth);    // put the glove there (debug: scripts)
 extern int32_t bank;                        // Vegas: the money before this game
 
 }  // namespace stage
