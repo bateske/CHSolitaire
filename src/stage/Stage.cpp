@@ -39,8 +39,7 @@ static bool hasUndo, redraw;
 // The cascade.
 static struct {
     int16_t x, y, vx, vy;                       // Q4
-    uint8_t card, idx, active, attract, nStamp, dirty;
-    int16_t floor;
+    uint8_t card, idx, active, nStamp, dirty;
     struct { int16_t x, y; uint8_t card; } stamp[3];
 } cas;
 
@@ -97,10 +96,10 @@ static void fly(int x0, int y0, uint8_t card, uint8_t pile, uint8_t idx, uint8_t
     }
 }
 
-// The held run's first card hangs from the fingertip.
+// The held run rides on the fingertip: the finger is under its last card.
 static void heldPos(int i, int &x, int &y) {
-    x = (gx16 >> 4) - 12;
-    y = (gy16 >> 4) - 1 + i * UP_PITCH;
+    x = (gx16 >> 4) - 8;
+    y = (gy16 >> 4) + 2 - SH - (heldN - 1 - i) * UP_PITCH;
 }
 
 // ---------------------------------------------------------------------------
@@ -298,11 +297,8 @@ static void input(Klondike &k, uint8_t pressed, uint8_t rep) {
 // ---------------------------------------------------------------------------
 // The cascade
 // ---------------------------------------------------------------------------
-static void cascadeBegin(bool attract, int floor) {
+static void cascadeBegin() {
     memset(&cas, 0, sizeof cas);
-    cas.attract = attract;
-    cas.floor = (int16_t)((floor - SH) << 4);
-    cas.dirty = 0;
 }
 
 static bool cascadeTick() {
@@ -310,12 +306,12 @@ static bool cascadeTick() {
         if (cas.idx >= 52) return false;
         // Kings first, round the four foundations, as Windows did it.
         uint8_t s = (uint8_t)(cas.idx & 3);
-        cas.card = cas.attract ? (uint8_t)(fx::rnd() % 52) : makeCard((uint8_t)(12 - (cas.idx >> 2)), s);
-        cas.x = (int16_t)((cas.attract ? 8 + (int)(fx::rnd() % 96) : colX(3 + s)) << 4);
-        cas.y = (int16_t)((cas.attract ? 30 : TOP_Y) << 4);
+        cas.card = makeCard((uint8_t)(12 - (cas.idx >> 2)), s);
+        cas.x = (int16_t)(colX(3 + s) << 4);
+        cas.y = (int16_t)(TOP_Y << 4);
         int v = 10 + (int)(fx::rnd() % 36);
         cas.vx = (int16_t)(fx::rnd() & 1 ? v : -v);
-        cas.vy = (int16_t)(cas.attract ? 0 : -(int)(fx::rnd() % 40));
+        cas.vy = (int16_t)(-(int)(fx::rnd() % 40));
         cas.active = 1;
         cas.idx++;
         cas.dirty |= (uint8_t)(1 << s);
@@ -323,10 +319,11 @@ static bool cascadeTick() {
     cas.x = (int16_t)(cas.x + cas.vx);
     cas.y = (int16_t)(cas.y + cas.vy);
     cas.vy = (int16_t)(cas.vy + 3);
-    if (cas.y > cas.floor) {
-        cas.y = cas.floor;
+    const int floor = (128 - SH) << 4;
+    if (cas.y > floor) {
+        cas.y = (int16_t)floor;
         cas.vy = (int16_t)(-(cas.vy * 13) / 16);
-        if (cas.vy < -6 && !cas.attract) audio::blip((uint16_t)(1200 - cas.vy * 12), 12);
+        if (cas.vy < -6) audio::blip((uint16_t)(1200 - cas.vy * 12), 12);
     }
     if (cas.nStamp < 3) cas.nStamp++;
     auto &s = cas.stamp[cas.nStamp - 1];
@@ -336,8 +333,7 @@ static bool cascadeTick() {
 }
 
 static void cascadeDraw() {
-    if (!cas.attract)
-        for (uint8_t s = 0; s < 4; s++) {
+    for (uint8_t s = 0; s < 4; s++) {
             if (!((cas.dirty >> s) & 1)) continue;
             // The card that left uncovers the one under it.
             int left = 13 - (cas.idx + 3 - s) / 4, x = colX(3 + s);
@@ -350,10 +346,6 @@ static void cascadeDraw() {
     art::flat = false;
     cas.nStamp = 0;
 }
-
-void attractBegin(int floor) { cascadeBegin(true, floor); }
-bool attractTick() { return cascadeTick(); }
-void attractDraw() { cascadeDraw(); }
 
 // ---------------------------------------------------------------------------
 // Per-frame
@@ -385,7 +377,7 @@ void update(Klondike &k, uint8_t pressed, uint8_t rep, bool paused) {
                 if (!busy() && !fx::particles() && !fx::bannerActive()) {
                     st = CASCADE;
                     fx::clear();                          // nothing may be left to freeze in the picture
-                    cascadeBegin(false, 128);
+                    cascadeBegin();
                     redraw = true;
                 }
             } else if (++autoT >= 5) {
@@ -402,23 +394,23 @@ void update(Klondike &k, uint8_t pressed, uint8_t rep, bool paused) {
             break;
     }
 
-    // The glove glides to what it points at: a finger on the card, low
-    // enough on a whole card to leave its rank showing, or on the strip of
-    // a covered one; carrying, a little below where the cards would land.
+    // The glove glides to what it points at, from below: a fingertip on
+    // the bottom edge of the pile's top card, the rest of it clear of the
+    // cards (the shimmering edges say how much of a column is taken).
+    // Carrying, the run rides on it a little off where it would land.
     int x = 64, y = 150;
     if (st == PLAY) {
         int n = k.count(curPile);
         if (heldSrc != NO_PILE) {
             cardPos(k, curPile, curPile == heldSrc ? n - heldN : (curPile <= WASTE && n ? n - 1 : n), x, y);
-            x += 14;
-            y += curPile < TAB ? 14 : 2;
+            x += 10;
+            y += (heldN - 1) * UP_PITCH + SH;
         } else {
-            bool whole = curPile < TAB || depth == 1 || !n;
-            int i = n - (curPile >= TAB ? depth : 1);
-            cardPos(k, curPile, i < 0 ? 0 : i, x, y);
-            x += 12;
-            y += whole ? 14 : 5;
+            cardPos(k, curPile, n ? n - 1 : 0, x, y);
+            x += 8;
+            y += SH - 2;
         }
+        if (y > 120) y = 120;
     }
     gx16 = (int16_t)(gx16 + (((x << 4) - gx16) >> 1));
     gy16 = (int16_t)(gy16 + (((y << 4) - gy16) >> 1));
@@ -530,9 +522,9 @@ static void drawTable(const Klondike &k, bool glove, uint32_t frame) {
     }
     if (glove) {
         int bob = holding ? 0 : (fx::isin((int)(frame >> 3) * 40) * 2) >> 8;
-        if (tapT) bob = (tapT < 6 ? tapT : 12 - tapT) / 2;
+        if (tapT) bob = -(tapT < 6 ? tapT : 12 - tapT) / 2;
         int dx = denyT ? (fx::isin(denyT * 64) * 3) >> 8 : 0;
-        sprite4(HAND, (gx16 >> 4) - HAND_TIP + dx, (gy16 >> 4) - HAND[1] + bob - 1);
+        sprite4(HAND, (gx16 >> 4) - HAND_TIP + dx, (gy16 >> 4) + bob);
     }
     fx::drawParticles();
     fx::drawFloats();

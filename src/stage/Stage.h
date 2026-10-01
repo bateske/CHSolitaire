@@ -29,10 +29,4 @@ uint8_t cursor();                           // the pile the glove is on (debug)
 uint8_t holding();                          // cards in hand (debug)
 extern int32_t bank;                        // Vegas: the money before this game
 
-// The cascade on its own (the title screen): cards drop from under the
-// lettering and bounce on `floor`.
-void attractBegin(int floor);
-bool attractTick();                         // false: the pack has run out
-void attractDraw();
-
 }  // namespace stage

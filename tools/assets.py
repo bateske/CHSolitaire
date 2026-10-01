@@ -236,8 +236,9 @@ def main():
 
     png = ART / "hand.png"
     hand = load_png(png) if png.exists() else load_art("hand")
-    o.array("HAND", pack_span4(hand), comment="the pointing glove (CHChess), span4, fingertip on the bottom row")
-    tip = [x for x, v in enumerate(hand[-1]) if v != TRANSPARENT]
+    hand = hand[::-1]            # drawn pointing down; here it points up, from under a card
+    o.array("HAND", pack_span4(hand), comment="the pointing glove (CHChess), turned over: span4, fingertip on the top row")
+    tip = [x for x, v in enumerate(hand[0]) if v != TRANSPARENT]
     o.const("HAND_TIP", (tip[0] + tip[-1]) // 2)
     preview("hand", hand, 8)
 

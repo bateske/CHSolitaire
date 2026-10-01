@@ -131,17 +131,17 @@ void small(int x, int y, uint8_t c, bool faceUp, int w, int rows, uint8_t edge) 
         panel(x, y, w, SH, 2, WHITE, edge);
         if (w < SW) return;
     }
-    glyph(x + 2, y + 1, RANK_GLYPH + r * 7, RANK_WIDTH[r], col);
-    glyph(x + 10, y + 1, SUIT_SMALL + s * 5, 5, col);
+    glyph(x + 2, y + 2, RANK_GLYPH + r * 7, RANK_WIDTH[r], col);
+    glyph(x + 10, y + 2, SUIT_SMALL + s * 5, 5, col);
     if (rows < SH) return;
     if (r >= RJ) {
         static const uint8_t *const BUST[3] = {BUST_JACK, BUST_QUEEN, BUST_KING};
         uint8_t remap[16];
         for (uint8_t i = 0; i < 16; i++) remap[i] = i;
         remap[RED] = col == INK || col == FELT_DK ? BLUE : col;   // robe in the suit colour
-        sprite4(BUST[r - RJ], x + 2, y + 10, remap);
+        sprite4(BUST[r - RJ], x + 2, y + 11, remap);
     } else {
-        span1(x + 4, y + 10, PIP9 + PIP9_AT[s], col);
+        span1(x + 4, y + 11, PIP9 + PIP9_AT[s], col);
     }
 }
 

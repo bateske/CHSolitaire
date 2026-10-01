@@ -8,10 +8,11 @@ handheld (CH32X035 RISC-V, 128x128 colour LCD, piezo), in the style of
 came with Windows: draw one or draw three, Standard or Vegas scoring, a
 timed game, a deck of twelve card backs to choose from (some of them move),
 and when the last king goes up, the pack bounces off the foundations one
-card at a time and leaves its trail across the screen.
+card at a time and leaves its trail across the screen. On the title, cards
+drift down the felt and turn over, as the tiles do in CHMahjong.
 
-What Windows did with a mouse the glove does here: it rests a finger on a
-card, lifts it (or a whole run) and carries it to where it should go. Legal
+What Windows did with a mouse the glove does here: it comes up from under
+a card with a fingertip on its edge, lifts it (or a whole run) and carries it to where it should go. Legal
 places shimmer while you carry. Cards fly out on the deal, turn over as they
 are uncovered, spark as they land on a foundation, and a finished suit gets
 its name called. Once everything is face up and the stock is done, the game
@@ -43,7 +44,7 @@ You need the Arduino IDE (2.x) or `arduino-cli`, and:
 
 Pick *Tools > Optimize > Smallest + LTO* and *Tools > USB > Upload only*
 (the game has no use for USB Serial, and uploading works as before). Built
-that way it takes about 30 KB of the 50.9 KB application region. From the
+that way it takes about 31 KB of the 50.9 KB application region. From the
 command line:
 
     arduino-cli compile -b CHGame:ch32v:CHGame:opt=oslto,rtlib=nano,periph=game,usb=uploadonly CHSolitaire
@@ -103,7 +104,7 @@ not count).
   stamps a frame when the game is catching up, so the trail has no gaps.
   Kings leave first, round the four foundations, as Windows did it; each
   card takes a random sideways speed and loses a fifth of its bounce every
-  time it hits the floor. The same code runs behind the title's menu.
+  time it hits the floor.
 * **Seven columns in 128 pixels** leave 18 a column, so the card is 17x23:
   CHBlackjack's bold rank and Press Play On Tape's suit glyph side by side
   along the top, a pip or a court card's bust below. A covered card is
@@ -112,7 +113,7 @@ not count).
   over the status line with the top of every rank still showing.
 * **The whole game is 196 bytes** (the stock and the waste share one
   24-card array), so undo is a copy of it and a save is one flash page.
-* **Flash and speed.** About 30 KB with LTO, some 20 KB to spare. A full
+* **Flash and speed.** About 31 KB with LTO, some 20 KB to spare. A full
   table is estimated (from the simulator, calibrated against the board's
   CHGfx benchmark) at about 5 ms a frame; the cascade under 1 ms.
 

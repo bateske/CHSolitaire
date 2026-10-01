@@ -28,7 +28,8 @@ static Scr cur = Scr::Title, pending = Scr::Title, back = Scr::Title;   // back:
 static uint16_t t;                   // frames on this screen
 static uint8_t fadeOut, fadeIn;
 static uint8_t sel;                  // menu cursor
-static bool paused, fresh;           // fresh: the title's backdrop is still to be drawn
+static bool paused;
+static void titleCards();
 static uint8_t doneT;                // frames since the cascade ended
 static int32_t bonus;                // the time bonus of the game just won
 
@@ -55,8 +56,7 @@ static void enter(Scr s) {
     stage::invalidate();
     if (s == Scr::Title) {
         audio::sfx(Sfx::Title);
-        fresh = true;
-        stage::attractBegin(98);
+        titleCards();
     }
 }
 
@@ -148,12 +148,89 @@ static void panel(int y, int h) {
 }
 
 // ---------------------------------------------------------------------------
-// Title: the pack bounces away behind the menu, as it does when you win.
+// Title: cards drifting down the felt behind the name (CHMahjong's tiles).
 // ---------------------------------------------------------------------------
 static const char *const TITLE_ITEM[4] = {"PLAY", "DECK", "OPTIONS", "STATS"};
+enum { RAIL_TOP = 30, RAIL_BOT = 98 };          // the felt shows between them
+
+// Calm, like koi: each sinks slowly, swaying from side to side, and turns
+// over now and then to show the back of the deck you picked. Now and then
+// a meteor: one card streaks across with a rainbow trail.
+struct Faller {
+    int16_t x16, y16;                // Q4
+    int8_t vx, vy, spin;             // Q4 a frame; spin in Q4 angle units (256 a turn)
+    uint8_t swaySpd, amp, card;
+    uint16_t ang, sway;              // the turn and the sway's phase, Q4
+};
+static Faller fallers[10], meteor;
+static bool meteorOn;
+static uint8_t rail[(RAIL_TOP + 1) * GFX_FB_STRIDE];   // the top rail's pixels
+static bool railKept;
+static uint16_t meteorIn;            // frames until the next
+
+static void dropFaller(Faller &f, int y) {
+    f.x16 = (int16_t)(fx::rndRange(2, 110) << 4);
+    f.y16 = (int16_t)(y << 4);
+    f.vx = (int8_t)fx::rndRange(-1, 2);
+    f.vy = (int8_t)fx::rndRange(4, 10);
+    f.card = (uint8_t)(fx::rnd() % 52);
+    f.ang = (uint16_t)fx::rnd();
+    f.sway = (uint16_t)fx::rnd();
+    int spin = fx::rndRange(6, 15);                                // a turn in 5-10 s
+    f.spin = (int8_t)(fx::rnd() & 1 ? spin : -spin);
+    f.swaySpd = (uint8_t)fx::rndRange(10, 18);                     // a sway in 4-7 s
+    f.amp = (uint8_t)fx::rndRange(3, 9);
+}
+
+static void titleCards() {
+    for (auto &f : fallers) dropFaller(f, fx::rndRange(8, RAIL_BOT));
+    meteorOn = false;
+    meteorIn = 120;
+    railKept = false;
+}
+
+static void moveFaller(Faller &f) {
+    f.x16 = (int16_t)(f.x16 + f.vx);
+    f.y16 = (int16_t)(f.y16 + f.vy);
+    f.ang = (uint16_t)(f.ang + f.spin);
+    f.sway = (uint16_t)(f.sway + f.swaySpd);
+}
+
+static int fallerX(const Faller &f) { return (f.x16 >> 4) + ((fx::isin(f.sway >> 4) * f.amp) >> 8); }
+
+static void drawFaller(const Faller &f) {
+    // Flat for most of the turn (a card edge-on shows nothing), quick through the flip.
+    int xs = fx::isin((f.ang >> 4) + 64) * 3;
+    bool up = xs >= 0;
+    if (xs < 0) xs = -xs;
+    int w = xs >= 256 ? art::SW : (art::SW * xs) >> 8;
+    art::small(fallerX(f), f.y16 >> 4, f.card, up, w < 2 ? 2 : w);
+}
 
 static void titleUpdate() {
-    if (!stage::attractTick()) { fresh = true; stage::attractBegin(98); }
+    for (auto &f : fallers) {
+        moveFaller(f);
+        if (f.y16 > (RAIL_BOT + 2) << 4) dropFaller(f, fx::rndRange(0, 6));      // behind the top rail
+    }
+    if (meteorOn) {
+        moveFaller(meteor);
+        int x = fallerX(meteor) + 8, y = (meteor.y16 >> 4) + 11;
+        for (int k = 0; k < 2; k++)
+            fx::spawn(k ? fx::STAR : fx::SPARK, x + fx::rndRange(-5, 6), y + fx::rndRange(-6, 7),
+                      fx::rndRange(-8, 9) - meteor.vx / 4, fx::rndRange(-12, 3), (uint8_t)fx::rndRange(18, 34),
+                      fx::HUES[(t / 2 + k) % 5]);
+        if (y > 140 || x < -30 || x > 158) { meteorOn = false; meteorIn = (uint16_t)fx::rndRange(150, 400); }
+    } else if (!--meteorIn) {
+        bool left = fx::rnd() & 1;
+        dropFaller(meteor, -24);
+        meteor.x16 = (int16_t)((left ? fx::rndRange(-10, 40) : fx::rndRange(70, 120)) << 4);
+        meteor.vx = (int8_t)(left ? fx::rndRange(8, 17) : -fx::rndRange(8, 17));
+        meteor.vy = (int8_t)fx::rndRange(30, 42);
+        meteor.spin = (int8_t)fx::rndRange(40, 70);
+        meteorOn = true;
+    }
+    fx::update();
+
     static const uint8_t DIRS = UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON;
     uint8_t p = arduboy.justPressedMask();
     if (p & DIRS) {
@@ -176,20 +253,31 @@ static void titleUpdate() {
 }
 
 static void titleRender(uint32_t frame) {
-    if (fresh) {
-        feltBackdrop();
-        fresh = false;
-        // The lettering: the top rows are FX_B, so the palette makes it shimmer.
+    // The felt and the cards on it; the rails go over them.
+    gfx_fillRect(0, RAIL_TOP, 128, RAIL_BOT - RAIL_TOP, FELT);
+    art::clock = (uint8_t)(frame >> 4);
+    for (auto &f : fallers) drawFaller(f);
+    if (meteorOn) drawFaller(meteor);
+    fx::drawParticles();
+    // The outlined lettering is the costliest thing in the game (~5 ms), so
+    // the top rail is drawn once and kept: the cards pass under a copy.
+    if (railKept) {
+        memcpy(gfx_fb, rail, sizeof rail);
+    } else {
+        gfx_fillRect(0, 0, 128, RAIL_TOP, INK);
+        gfx_hline(0, RAIL_TOP, 128, GOLD);
+        // The top rows are FX_B, so the palette makes it shimmer.
         Mask m = maskBegin(LOGO_W, LOGO_H);
         maskBlit1(m, LOGO, LOGO_W, LOGO_H, 1);
         uint8_t ramp[LOGO_H];
         for (int i = 0; i < LOGO_H; i++) ramp[i] = i < 5 ? FX_B : (i < 14 ? GOLD : WOOD);
-        maskDraw(m, 64 - LOGO_W / 2, 7, INK, WINE, ramp);
+        maskDraw(m, 64 - LOGO_W / 2, 5, INK, WINE, ramp);
+        memcpy(rail, gfx_fb, sizeof rail);
+        railKept = true;
     }
-    stage::attractDraw();
-    fillRound(3, 98, 122, 28, 3, NAVY);
-    roundRect(3, 98, 122, 28, 3, GOLD);
-    for (uint8_t i = 0; i < 4; i++) menuItem(i & 1 ? 93 : 33, i & 2 ? 114 : 102, TITLE_ITEM[i], i == sel, frame);
+    gfx_fillRect(0, RAIL_BOT, 128, 128 - RAIL_BOT, NAVY);
+    gfx_hline(0, RAIL_BOT, 128, GOLD);
+    for (uint8_t i = 0; i < 4; i++) menuItem(i & 1 ? 93 : 33, i & 2 ? 115 : 102, TITLE_ITEM[i], i == sel, frame);
 }
 
 // ---------------------------------------------------------------------------
@@ -478,7 +566,6 @@ static bool debugHook(char cmd, const char *args) {
             fmtStr(p, "\n");
             dbg::print(buf);
             stage::invalidate();
-            fresh = true;
             return true;
         }
 #endif
