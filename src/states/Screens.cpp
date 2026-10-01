@@ -127,15 +127,6 @@ static void title35(const char *text, int y, uint8_t scale, uint8_t top, uint8_t
 
 static void centred35(int y, const char *s, uint8_t c) { text35(64 - text35Width(s) / 2, y, s, c); }
 
-static void menuItem(int cx, int y, const char *s, bool on, uint32_t frame) {
-    int w = text35x2Width(s);
-    if (on) {
-        fillRound(cx - w / 2 - 4, y - 2, w + 6, 13, 3, INK);
-        roundRect(cx - w / 2 - 4, y - 2, w + 6, 13, 3, (frame & 16) ? FX_B : GOLD);
-    }
-    text35x2(cx - w / 2, y, s, on ? GOLD : WHITE);
-}
-
 static bool menuNav(uint8_t n) {
     if (arduboy.repeat(UP_BUTTON) && sel > 0) { sel--; audio::sfx(Sfx::Cursor); }
     if (arduboy.repeat(DOWN_BUTTON) && sel + 1 < n) { sel++; audio::sfx(Sfx::Cursor); }
@@ -151,7 +142,38 @@ static void panel(int y, int h) {
 // Title: cards drifting down the felt behind the name (CHMahjong's tiles).
 // ---------------------------------------------------------------------------
 static const char *const TITLE_ITEM[4] = {"PLAY", "DECK", "OPTIONS", "STATS"};
-enum { RAIL_TOP = 30, RAIL_BOT = 98 };          // the felt shows between them
+enum { RAIL_TOP = 30, RAIL_BOT = 110 };         // the felt shows between them
+
+// The menu: CHBlackjack's button bar. The button under the cursor grows and
+// takes its colour (PLAY light green, the others gold); the rest shrink
+// back, PLAY to dark green, the others to grey.
+static int16_t buttonQ4[4];          // widths, Q4, easing to their targets
+
+static void titleButtons() {
+    static const uint8_t BASE[4] = {21, 21, 31, 25};
+    int16_t w[4];
+    int total = 0;
+    for (uint8_t i = 0; i < 4; i++) {
+        int16_t want = (int16_t)((BASE[i] + (i == sel ? 22 : 0)) << 4);
+        buttonQ4[i] = (int16_t)(buttonQ4[i] + (want - buttonQ4[i]) / 3);
+        if (buttonQ4[i] - want < 8 && want - buttonQ4[i] < 8) buttonQ4[i] = want;
+        w[i] = (int16_t)((buttonQ4[i] + 8) >> 4);
+        total += w[i];
+    }
+    int x = (128 - total - 6) / 2;
+    for (uint8_t i = 0; i < 4; i++) {
+        bool on = i == sel;
+        int grown = w[i] - BASE[i] > 11;                            // more than half way out: taller too
+        int y = RAIL_BOT + 4 - grown, h = 11 + 2 * grown;
+        uint8_t face = i == 0 ? (on ? FELT_LT : FELT_DK) : (on ? GOLD : SILVER);
+        fillRound(x, y, w[i], h, 3, face);
+        gfx_hline(x + 2, y + h - 2, w[i] - 4, i == 0 ? (on ? FELT : INK) : (on ? WOOD : NAVY));
+        roundRect(x, y, w[i], h, 3, on ? FX_B : INK);
+        int tw = text35Width(TITLE_ITEM[i]);
+        text35(x + w[i] / 2 - tw / 2, y + h / 2 - 3, TITLE_ITEM[i], i == 0 && !on ? FELT_LT : (i && !on ? WHITE : INK));
+        x += w[i] + 2;
+    }
+}
 
 // Calm, like koi: each sinks slowly, swaying from side to side, and turns
 // over now and then to show the back of the deck you picked. Now and then
@@ -186,6 +208,7 @@ static void titleCards() {
     for (auto &f : fallers) dropFaller(f, fx::rndRange(8, RAIL_BOT));
     meteorOn = false;
     meteorIn = 120;
+    memset(buttonQ4, 0, sizeof buttonQ4);
     railKept = false;
 }
 
@@ -231,12 +254,9 @@ static void titleUpdate() {
     }
     fx::update();
 
-    static const uint8_t DIRS = UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON;
     uint8_t p = arduboy.justPressedMask();
-    if (p & DIRS) {
-        sel ^= (p & (LEFT_BUTTON | RIGHT_BUTTON)) ? 1 : 2;
-        audio::sfx(Sfx::Cursor);
-    }
+    if (arduboy.repeat(LEFT_BUTTON) || arduboy.repeat(UP_BUTTON)) { sel = (uint8_t)((sel + 3) & 3); audio::sfx(Sfx::Cursor); }
+    if (arduboy.repeat(RIGHT_BUTTON) || arduboy.repeat(DOWN_BUTTON)) { sel = (uint8_t)((sel + 1) & 3); audio::sfx(Sfx::Cursor); }
     if (!(p & A_BUTTON)) return;
     audio::sfx(Sfx::Select);
     back = Scr::Title;
@@ -277,7 +297,7 @@ static void titleRender(uint32_t frame) {
     }
     gfx_fillRect(0, RAIL_BOT, 128, 128 - RAIL_BOT, NAVY);
     gfx_hline(0, RAIL_BOT, 128, GOLD);
-    for (uint8_t i = 0; i < 4; i++) menuItem(i & 1 ? 93 : 33, i & 2 ? 115 : 102, TITLE_ITEM[i], i == sel, frame);
+    titleButtons();
 }
 
 // ---------------------------------------------------------------------------

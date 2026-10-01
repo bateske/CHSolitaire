@@ -40,8 +40,7 @@ tap DOWN
 tap DOWN
 tap A
 wait 40
-tap RIGHT
-tap DOWN
+tap LEFT
 tap A
 wait 30
 snap stats

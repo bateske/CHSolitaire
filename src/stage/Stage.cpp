@@ -23,7 +23,7 @@ int32_t bank;
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-enum : uint8_t { F_DOWN = 1, F_TURN = 2 };      // lands face down; turns over on the way
+enum : uint8_t { F_DOWN = 1, F_TURN = 2, F_PUFF = 4 };   // lands face down; turns over on the way; puffs as it lands
 struct Fly { int16_t x0, y0; uint8_t card, pile, idx, T, flags; int8_t t; };
 static Fly flies[28];                           // T = 0: free
 
@@ -142,6 +142,18 @@ uint8_t cursor() { return curPile; }
 uint8_t holding() { return heldSrc == NO_PILE ? 0 : heldN; }
 
 static void landed(const Klondike &k, const Fly &f) {
+    if (f.flags & F_PUFF) {
+        // CHChess's puff, lighter: a ring of grey and white spreading from
+        // the middle of the card.
+        int x, y;
+        cardPos(k, f.pile, f.idx, x, y);
+        for (int i = 0; i < 12; i++) {
+            // From the card's edge outward, so it shows against the felt.
+            int a = i * 256 / 12 + 10, c = fx::isin(a + 64), sn = fx::isin(a);
+            fx::spawn(fx::DUST, x + 8 + ((c * 9) >> 8), y + 11 + ((sn * 12) >> 8), (c * 24) >> 8, (sn * 24) >> 8, 20,
+                      i & 1 ? WHITE : SILVER);
+        }
+    }
     if (f.pile >= FOUND && f.pile < TAB) {
         int x, y;
         cardPos(k, f.pile, f.idx, x, y);
@@ -181,7 +193,8 @@ static void play(Klondike &k, uint8_t src, uint8_t n, uint8_t dst, bool held, ui
         audio::sfx(Sfx::Flip);
     }
     uint8_t at = (uint8_t)(k.count(to) - n);
-    for (uint8_t i = 0; i < n; i++) fly(x[i], y[i], k.card(to, (uint8_t)(at + i)), to, (uint8_t)(at + i), T);
+    for (uint8_t i = 0; i < n; i++)
+        fly(x[i], y[i], k.card(to, (uint8_t)(at + i)), to, (uint8_t)(at + i), T, held && to >= TAB && !i ? F_PUFF : 0);
     heldSrc = NO_PILE;
     afterMove(k);
 }
@@ -517,11 +530,11 @@ static void drawTable(const Klondike &k, bool glove, uint32_t frame) {
         for (uint8_t i = 0; i < heldN; i++) {
             int x, y;
             heldPos(i, x, y);
-            art::small(x, y, k.card(heldSrc, (uint8_t)(from + i)), true, SW, i == heldN - 1 ? SH : UP_PITCH);
+            art::small(x, y, k.card(heldSrc, (uint8_t)(from + i)), true, SW, i == heldN - 1 ? SH : UP_PITCH, FX_A);
         }
     }
     if (glove) {
-        int bob = holding ? 0 : (fx::isin((int)(frame >> 3) * 40) * 2) >> 8;
+        int bob = holding ? 0 : (int)((frame >> 5) & 1);
         if (tapT) bob = -(tapT < 6 ? tapT : 12 - tapT) / 2;
         int dx = denyT ? (fx::isin(denyT * 64) * 3) >> 8 : 0;
         sprite4(HAND, (gx16 >> 4) - HAND_TIP + dx, (gy16 >> 4) + bob);
